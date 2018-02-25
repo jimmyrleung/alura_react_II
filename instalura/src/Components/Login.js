@@ -19,17 +19,20 @@ export default class Login extends Component {
 
         fetch("http://localhost:3002/api/login", requestInfo)
             .then(response => {
-                if (response.ok) {
-                    return response.json();
+                return Promise.all([response.ok, response.json()]);
+            })
+            // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
+            .then(([isResponseOk, responseBody]) => {
+                if (isResponseOk) {
+                    console.log(responseBody.token);
+                    localStorage.setItem("auth-token", responseBody.token);
+                    this.props.history.push("/timeline");
                 }
                 else {
-                    this.setState({ msg: "Não foi possível fazer login." });
+                    throw new Error(responseBody.error || "Não foi possível fazer login.");
                 }
             })
-            .then(token => {
-                console.log(token);
-            })
-            .catch(err => this.setState({ msg: "Erro ao fazer login." }));
+            .catch(err => this.setState({ msg: err.message }));
     };
 
     render() {
