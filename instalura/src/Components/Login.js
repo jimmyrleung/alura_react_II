@@ -18,9 +18,7 @@ export default class Login extends Component {
         };
 
         fetch("http://localhost:3002/api/login", requestInfo)
-            .then(response => {
-                return Promise.all([response.ok, response.json()]);
-            })
+            .then(response => Promise.all([response.ok, response.json()]))
             // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
             .then(([isResponseOk, responseBody]) => {
                 if (isResponseOk) {

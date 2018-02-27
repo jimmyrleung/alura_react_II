@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
+import PubSub from 'pubsub-js';
 
 class FotoHeader extends Component {
     render() {
@@ -18,13 +19,50 @@ class FotoHeader extends Component {
 }
 
 class FotoInfo extends Component {
+
+    constructor(props) {
+        super(props);
+        this.state = { likers: this.props.foto.likers };
+    }
+
+    componentDidMount() {
+        const requestInfo = {
+            method: "GET",
+            headers: new Headers({
+                "Content-type": "application/json",
+                "Authorization": localStorage.getItem("auth-token")
+            })
+        };
+
+        PubSub.subscribe("atualiza-likers", (topico, data) => {
+            if (this.props.foto.id === data.fotoId) {
+                fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/likers`, requestInfo)
+                    .then(response => Promise.all([response.ok, response.json()]))
+                    // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
+                    .then(([isResponseOk, responseBody]) => {
+                        if (isResponseOk) {
+                            this.setState({ likers: responseBody.likers });
+                        }
+                        else {
+                            throw new Error("Erro ao carregar lista de likers.");
+                        }
+                    })
+                    .catch(err => console.log(err.message));
+            }
+        });
+    }
+
     render() {
         return (
             <div className="foto-info">
                 <div className="foto-info-likes">
-                    {this.props.foto.likers.length > 0 ? "♡ " : ""}
+                    {this.state.likers.length > 0 ? "♡ " : ""}
                     {
-                        this.props.foto.likers.map(liker => <Link key={liker} to={`/timeline/${liker}`}>{liker}</Link>)
+                        this.state.likers.map((liker, i) => {
+                            return this.state.likers.length - 1 !== i ?
+                                <span><Link key={liker} to={`/timeline/${liker}`}>{liker}</Link>, </span> :
+                                <span><Link key={liker} to={`/timeline/${liker}`}>{liker}</Link></span>
+                        })
                     }
                 </div>
 
@@ -53,15 +91,54 @@ class FotoInfo extends Component {
 }
 
 class FotoAtualizacoes extends Component {
+
+    constructor(props) {
+        super(props);
+
+        // Precisamos que o componente seja recarregado com a classe certa
+        this.state = { isLiked: this.props.foto.isLiked };
+    };
+
+    like(evt) {
+        evt.preventDefault();
+
+        const requestInfo = {
+            method: "POST",
+            headers: new Headers({
+                "Content-type": "application/json",
+                "Authorization": localStorage.getItem("auth-token")
+            })
+        };
+
+        fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/like`, requestInfo)
+            .then(response => Promise.all([response.ok, response.json()]))
+            // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
+            .then(([isResponseOk, responseBody]) => {
+                if (isResponseOk) {
+                    console.log(responseBody);
+                    this.setState({ isLiked: responseBody.isLiked });
+
+                    // Como teremos 'n' componentes 'foto', todos eles estarão inscritos no evento 'atualiza-likers', portanto,
+                    // precisamos passar o id para que ocorra a atualização somente na foto que está recebendo o like
+                    PubSub.publish("atualiza-likers", {
+                        fotoId: this.props.foto.id
+                    });
+                }
+                else {
+                    throw new Error("Erro ao curtir a foto.")
+                }
+            })
+            .catch(err => console.log(err.message));
+    };
+
     render() {
         return (
             <section className="fotoAtualizacoes">
-                <a href="#" className="fotoAtualizacoes-like">Likar</a>
+                <a onClick={this.like.bind(this)} href="#" className={this.state.isLiked ? 'fotoAtualizacoes-like-ativo' : 'fotoAtualizacoes-like'}>Likar</a>
                 <form className="fotoAtualizacoes-form">
                     <input type="text" placeholder="Adicione um comentário..." className="fotoAtualizacoes-form-campo" />
                     <input type="submit" value="Comentar" className="fotoAtualizacoes-form-submit" />
                 </form>
-
             </section>
         );
     }
@@ -75,7 +152,7 @@ export default class Foto extends Component {
                 <FotoHeader foto={this.props.foto} />
                 <img alt="foto" className="foto-src" src={this.props.foto.url} />
                 <FotoInfo foto={this.props.foto} />
-                <FotoAtualizacoes />
+                <FotoAtualizacoes foto={this.props.foto} />
             </div>
         );
     }
