@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import Foto from './Foto';
+import PubSub from 'pubsub-js';
 
 export default class Timeline extends Component {
     constructor(props) {
@@ -18,11 +19,15 @@ export default class Timeline extends Component {
         this.carregaTimeLine();
     }
 
+    componentWillMount() {
+        PubSub.subscribe("filtrar-timeline", (topico, data) => this.carregaTimeLine(`?p=${data.text}`));
+    };
+
     componentDidMount() {
         this.carregaTimeLine();
     };
 
-    carregaTimeLine() {
+    carregaTimeLine(queryParams) {
         const requestInfo = {
             method: "GET",
             headers: new Headers({
@@ -31,7 +36,13 @@ export default class Timeline extends Component {
             })
         };
 
-        fetch(`http://localhost:3002/api/photos${this.username ? `/${this.username}` : ""}`, requestInfo)
+        let url = `http://localhost:3002/api/photos${this.username ? `/${this.username}` : ""}`
+
+        if (queryParams) {
+            url += queryParams;
+        }
+
+        fetch(url, requestInfo)
             .then(response => response.json())
             .then(fotos => {
                 this.setState({ fotos: fotos });

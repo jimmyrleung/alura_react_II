@@ -22,7 +22,7 @@ class FotoInfo extends Component {
 
     constructor(props) {
         super(props);
-        this.state = { likers: this.props.foto.likers };
+        this.state = { likers: this.props.foto.likers, comentarios: this.props.foto.comments };
     }
 
     componentDidMount() {
@@ -36,7 +36,7 @@ class FotoInfo extends Component {
 
         PubSub.subscribe("atualiza-likers", (topico, data) => {
             if (this.props.foto.id === data.fotoId) {
-                fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/likers`, requestInfo)
+                fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/likes`, requestInfo)
                     .then(response => Promise.all([response.ok, response.json()]))
                     // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
                     .then(([isResponseOk, responseBody]) => {
@@ -50,7 +50,25 @@ class FotoInfo extends Component {
                     .catch(err => console.log(err.message));
             }
         });
-    }
+
+        PubSub.subscribe("atualiza-comentarios", (topico, data) => {
+            console.log(data);
+            if (this.props.foto.id === data.fotoId) {
+                fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/comments`, requestInfo)
+                    .then(response => Promise.all([response.ok, response.json()]))
+                    // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
+                    .then(([isResponseOk, responseBody]) => {
+                        if (isResponseOk) {
+                            this.setState({ comentarios: responseBody.comments });
+                        }
+                        else {
+                            throw new Error("Erro ao carregar lista de comentários.");
+                        }
+                    })
+                    .catch(err => console.log(err.message));
+            }
+        });
+    };
 
     render() {
         return (
@@ -72,18 +90,14 @@ class FotoInfo extends Component {
                 </p>
 
                 <ul className="foto-info-comentarios">
-                    <li className="comentario">
-                        <a className="foto-info-autor">seguidor </a>
-                        Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quidem ad, molestiae.
-                </li>
-                    <li className="comentario">
-                        <a className="foto-info-autor">seguidor </a>
-                        Lorem ipsum dolor sit amet, consectetur adipisicing elit. Sunt cumque earum molestias voluptatem modi nihil sit magnam ratione eveniet distinctio magni error asperiores dignissimos tempora expedita, laborum ex soluta hic maiores veritatis deserunt.
-                </li>
-                    <li className="comentario">
-                        <a className="foto-info-autor">seguidor </a>
-                        Lorem ipsum dolor sit amet, consectetur adipisicing elit. Ipsum laudantium quae ab fuga odio delectus maiores voluptatibus sit commodi quidem.
-                </li>
+                    {
+                        this.state.comentarios.map(comentario =>
+                            <li className="comentario" key={comentario.text}>
+                                <Link className="foto-info-autor" to={`/timeline/${comentario.username}`}>{comentario.username}</Link>
+                                {" " + comentario.text}
+                            </li>
+                        )
+                    }
                 </ul>
             </div>
         );
@@ -110,7 +124,7 @@ class FotoAtualizacoes extends Component {
             })
         };
 
-        fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/like`, requestInfo)
+        fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/likes`, requestInfo)
             .then(response => Promise.all([response.ok, response.json()]))
             // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
             .then(([isResponseOk, responseBody]) => {
@@ -131,12 +145,45 @@ class FotoAtualizacoes extends Component {
             .catch(err => console.log(err.message));
     };
 
+    comentar(evt) {
+        evt.preventDefault();
+
+        const requestInfo = {
+            method: "POST",
+            headers: new Headers({
+                "Content-type": "application/json",
+                "Authorization": localStorage.getItem("auth-token")
+            }),
+            body: JSON.stringify({ comment: this.comentario.value })
+        };
+
+        fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/comments`, requestInfo)
+            .then(response => Promise.all([response.ok, response.json()]))
+            // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
+            .then(([isResponseOk, responseBody]) => {
+
+                if (isResponseOk) {
+                    //console.log(responseBody);
+
+                    // Como teremos 'n' componentes 'foto', todos eles estarão inscritos no evento 'atualiza-comentarios', portanto,
+                    // precisamos passar o id para que ocorra a atualização somente na foto que está recebendo o like
+                    PubSub.publish("atualiza-comentarios", {
+                        fotoId: this.props.foto.id
+                    });
+                }
+                else {
+                    throw new Error("Erro ao adicionar comentário.")
+                }
+            })
+            .catch(err => console.log(err.message));
+    };
+
     render() {
         return (
             <section className="fotoAtualizacoes">
                 <a onClick={this.like.bind(this)} href="#" className={this.state.isLiked ? 'fotoAtualizacoes-like-ativo' : 'fotoAtualizacoes-like'}>Likar</a>
-                <form className="fotoAtualizacoes-form">
-                    <input type="text" placeholder="Adicione um comentário..." className="fotoAtualizacoes-form-campo" />
+                <form className="fotoAtualizacoes-form" onSubmit={this.comentar.bind(this)}>
+                    <input type="text" placeholder="Adicione um comentário..." className="fotoAtualizacoes-form-campo" ref={(input) => this.comentario = input} />
                     <input type="submit" value="Comentar" className="fotoAtualizacoes-form-submit" />
                 </form>
             </section>

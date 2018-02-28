@@ -139,6 +139,7 @@ html,body {
   
   .foto-info {
     padding: 1em;
+    text-align: left;
   }
   
   .foto-info-likes {
