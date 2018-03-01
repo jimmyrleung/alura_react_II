@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
 import PubSub from 'pubsub-js';
+import Request from '../services/Request';
 
 class FotoHeader extends Component {
     render() {
@@ -26,26 +27,14 @@ class FotoInfo extends Component {
     }
 
     componentDidMount() {
-        const requestInfo = {
-            method: "GET",
-            headers: new Headers({
-                "Content-type": "application/json",
-                "Authorization": localStorage.getItem("auth-token")
-            })
-        };
+        const likesUrl = `http://localhost:3002/api/photos/${this.props.foto.id}/likes`;
+        const commentsUrl = `http://localhost:3002/api/photos/${this.props.foto.id}/comments`;
 
         PubSub.subscribe("atualiza-likers", (topico, data) => {
             if (this.props.foto.id === data.fotoId) {
-                fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/likes`, requestInfo)
-                    .then(response => Promise.all([response.ok, response.json()]))
-                    // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
-                    .then(([isResponseOk, responseBody]) => {
-                        if (isResponseOk) {
-                            this.setState({ likers: responseBody.likers });
-                        }
-                        else {
-                            throw new Error("Erro ao carregar lista de likers.");
-                        }
+                Request.send(likesUrl, "GET", true)
+                    .then(response => {
+                        this.setState({ likers: response.likers });
                     })
                     .catch(err => console.log(err.message));
             }
@@ -54,16 +43,9 @@ class FotoInfo extends Component {
         PubSub.subscribe("atualiza-comentarios", (topico, data) => {
             console.log(data);
             if (this.props.foto.id === data.fotoId) {
-                fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/comments`, requestInfo)
-                    .then(response => Promise.all([response.ok, response.json()]))
-                    // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
-                    .then(([isResponseOk, responseBody]) => {
-                        if (isResponseOk) {
-                            this.setState({ comentarios: responseBody.comments });
-                        }
-                        else {
-                            throw new Error("Erro ao carregar lista de comentários.");
-                        }
+                Request.send(commentsUrl, "GET", true)
+                    .then(response => {
+                        this.setState({ comentarios: response.comments });
                     })
                     .catch(err => console.log(err.message));
             }
@@ -115,67 +97,15 @@ class FotoAtualizacoes extends Component {
 
     like(evt) {
         evt.preventDefault();
-
-        const requestInfo = {
-            method: "POST",
-            headers: new Headers({
-                "Content-type": "application/json",
-                "Authorization": localStorage.getItem("auth-token")
-            })
-        };
-
-        fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/likes`, requestInfo)
-            .then(response => Promise.all([response.ok, response.json()]))
-            // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
-            .then(([isResponseOk, responseBody]) => {
-                if (isResponseOk) {
-                    console.log(responseBody);
-                    this.setState({ isLiked: responseBody.isLiked });
-
-                    // Como teremos 'n' componentes 'foto', todos eles estarão inscritos no evento 'atualiza-likers', portanto,
-                    // precisamos passar o id para que ocorra a atualização somente na foto que está recebendo o like
-                    PubSub.publish("atualiza-likers", {
-                        fotoId: this.props.foto.id
-                    });
-                }
-                else {
-                    throw new Error("Erro ao curtir a foto.")
-                }
-            })
-            .catch(err => console.log(err.message));
+        this.props.like(this.props.foto.id);
+        PubSub.subscribe("atualiza-likers", (topico, data) => {
+            this.setState({ isLiked: data.isLiked });
+        });
     };
 
     comentar(evt) {
         evt.preventDefault();
-
-        const requestInfo = {
-            method: "POST",
-            headers: new Headers({
-                "Content-type": "application/json",
-                "Authorization": localStorage.getItem("auth-token")
-            }),
-            body: JSON.stringify({ comment: this.comentario.value })
-        };
-
-        fetch(`http://localhost:3002/api/photos/${this.props.foto.id}/comments`, requestInfo)
-            .then(response => Promise.all([response.ok, response.json()]))
-            // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
-            .then(([isResponseOk, responseBody]) => {
-
-                if (isResponseOk) {
-                    //console.log(responseBody);
-
-                    // Como teremos 'n' componentes 'foto', todos eles estarão inscritos no evento 'atualiza-comentarios', portanto,
-                    // precisamos passar o id para que ocorra a atualização somente na foto que está recebendo o like
-                    PubSub.publish("atualiza-comentarios", {
-                        fotoId: this.props.foto.id
-                    });
-                }
-                else {
-                    throw new Error("Erro ao adicionar comentário.")
-                }
-            })
-            .catch(err => console.log(err.message));
+        this.props.comentar(this.props.foto.id, this.comentario.value);
     };
 
     render() {
@@ -191,7 +121,6 @@ class FotoAtualizacoes extends Component {
     }
 }
 
-
 export default class Foto extends Component {
     render() {
         return (
@@ -199,7 +128,7 @@ export default class Foto extends Component {
                 <FotoHeader foto={this.props.foto} />
                 <img alt="foto" className="foto-src" src={this.props.foto.url} />
                 <FotoInfo foto={this.props.foto} />
-                <FotoAtualizacoes foto={this.props.foto} />
+                <FotoAtualizacoes foto={this.props.foto} like={this.props.like} comentar={this.props.comentar} />
             </div>
         );
     }

@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import Request from '../services/Request';
 
 export default class Login extends Component {
 
@@ -9,28 +10,15 @@ export default class Login extends Component {
 
     login(evt) {
         evt.preventDefault();
-
         // const: utilizamos quando a variável terá um valor atribuído e este não será mais alterado
-        const requestInfo = {
-            method: "POST",
-            body: JSON.stringify({ username: this.username.value, password: this.password.value }),
-            headers: new Headers({ "Content-type": "application/json" })
-        };
-
-        fetch("http://localhost:3002/api/login", requestInfo)
-            .then(response => Promise.all([response.ok, response.json()]))
-            // Usamos destructuring ao invés de .spread pois o .spread não é um recurso nativo das promises
-            .then(([isResponseOk, responseBody]) => {
-                if (isResponseOk) {
-                    console.log(responseBody.token);
-                    localStorage.setItem("auth-token", responseBody.token);
-                    this.props.history.push("/timeline");
-                }
-                else {
-                    throw new Error(responseBody.error || "Não foi possível fazer login.");
-                }
+        const url = "http://localhost:3002/api/login";
+        Request.send(url, "POST", false, { username: this.username.value, password: this.password.value })
+            .then(response => {
+                console.log(response.token);
+                localStorage.setItem("auth-token", response.token);
+                this.props.history.push("/timeline");
             })
-            .catch(err => this.setState({ msg: err.message }));
+            .catch(err => this.setState({ msg: (err.message ? err.message : "Não foi possível fazer login.") }));
     };
 
     render() {
