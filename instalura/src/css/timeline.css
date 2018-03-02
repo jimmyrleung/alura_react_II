@@ -21,7 +21,7 @@ html,body {
     justify-content: space-between;
     height: 7vh;
     border-bottom: 2px solid #aaa;
-    position: fixed;
+    /*position: fixed;*/
     top: 0;
     width: 80%;
     flex-basis: 100%;
@@ -239,3 +239,7 @@ html,body {
     opacity: 0.01;
     transition: opacity 300ms ease-in;
   }      
+
+  .pointer{
+    cursor: pointer;
+  }

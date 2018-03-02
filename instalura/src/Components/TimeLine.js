@@ -21,7 +21,31 @@ export default class Timeline extends Component {
     }
 
     componentWillMount() {
+        const commentsUrl = `http://localhost:3002/api/photos/fotoId/comments`;
+        const likesUrl = `http://localhost:3002/api/photos/fotoId/likes`;
+
         PubSub.subscribe("filtrar-timeline", (topico, data) => this.carregaTimeLine(`?p=${data.text}`));
+
+        PubSub.subscribe("atualiza-likers", (topico, data) => {
+            Request.send(likesUrl.replace("fotoId", data.fotoId), "GET", true)
+                .then((result) => {
+                    let fotoLikeada = this.state.fotos.find(f => f.id === data.fotoId);
+                    fotoLikeada.isLiked = data.isLiked;
+                    fotoLikeada.likers = result.likers;
+                    this.setState({ fotos: this.state.fotos });
+                })
+                .catch(err => console.log(err.message));
+        });
+
+        PubSub.subscribe("atualiza-comentarios", (topico, data) => {
+            Request.send(commentsUrl.replace("fotoId", data.fotoId), "GET", true)
+                .then((result) => {
+                    let fotoComentada = this.state.fotos.find(f => f.id === data.fotoId);
+                    fotoComentada.comments = result.comments;
+                    this.setState({ fotos: this.state.fotos });
+                })
+                .catch(err => console.log(err.message));
+        });
     };
 
     componentDidMount() {

@@ -10,6 +10,7 @@ class App extends Component {
     // TODO: Página publica para /timeline/:username
     // olhar propriedade this.props.match para verificar se foi chamado /timeline ou /timeline/:username
   }
+  
   render() {
     return (
       <div id="root">

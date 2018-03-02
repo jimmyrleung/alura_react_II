@@ -1,5 +1,4 @@
 const Request = {
-    // send("http://localhost:3002/api/photos", "GET", true, {})
     send: function (url, method, authenticated, data) {
         return new Promise((resolve, reject) => {
             let requestInfo = {

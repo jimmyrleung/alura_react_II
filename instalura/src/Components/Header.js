@@ -22,7 +22,7 @@ export default class Header extends Component {
                         <li className="header-nav-item">
                             {/*                 ♥ */}
                             {/* Quem deu like nas minhas fotos */}
-                            <a href="#">♡</a>
+                            <a>♡</a>
                         </li>
                     </ul>
                 </nav>
